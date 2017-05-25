@@ -21,28 +21,44 @@ if (file_get_contents('php://input')) {
 
 function email_exists($email, $link)
 {
-    $query = "SELECT * FROM Users WHERE email=" . $email;
-    if ($result = $link->query($query)) {
-        if ($result->num_rows > 0)
-            return true;
+    if (!($stmt = $link->prepare("SELECT email FROM Users WHERE email=?"))) {
+        echo "Prepare failed: (" . $link->errno . ") " . $link->error;
     }
-    return false;
+
+    if (!$stmt->bind_param("s", $email)) {
+        echo "Binding parameters failed: (" . $stmt->errno . ") " . $stmt->error;
+    }
+
+    if (!$stmt->execute()) {
+        echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+    } else {
+        $stmt->bind_result($result);
+        $stmt->fetch();
+        $stmt->close();
+        if ($result)
+            return true;
+        else
+            return false;
+    }
 }
 
 function insert_user($fname, $lname, $gender, $email, $password, $link)
 {
-    $query = "INSERT INTO Users(fname, lname, gender, email, password)
-VALUES ('$fname','$lname','$gender','$email','$password')";
+    if (!($stmt = $link->prepare("INSERT INTO Users(fname, lname, gender, email, password) VALUES (?, ?, ?, ?, ?)"))) {
+        echo "Prepare failed: (" . $link->errno . ") " . $link->error;
+    }
 
-    if ($link->query($query)) {
-        $link->close();
+    if (!$stmt->bind_param("sssss", $fname, $lname, $gender, $email, $password)) {
+        echo "Binding parameters failed: (" . $stmt->errno . ") " . $stmt->error;
+    }
+
+    if (!$stmt->execute()) {
+        echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+        return false;
+    } else {
         return true;
     }
-    else {
-        echo $link->error;
-        $link->close();
-    }
-    return false;
+
 }
 
 function test_input($data, $link)
